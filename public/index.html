@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Task Manager</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+    form { display: flex; gap: 8px; margin-bottom: 16px; }
+    input[type=text] { flex: 1; padding: 8px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    li { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    li span { flex: 1; }
+    li.done span { text-decoration: line-through; opacity: .6; }
+    ul { list-style: none; padding: 0; }
+  </style>
+</head>
+<body>
+  <h1>Task Manager</h1>
+  <form id="form">
+    <input type="text" id="title" placeholder="New task..." required />
+    <button type="submit">Add</button>
+  </form>
+  <ul id="list"></ul>
+
+  <script>
+    const list = document.getElementById("list");
+    const form = document.getElementById("form");
+    const titleInput = document.getElementById("title");
+
+    async function load() {
+      const tasks = await (await fetch("/api/tasks")).json();
+      list.innerHTML = "";
+      tasks.forEach((t) => {
+        const li = document.createElement("li");
+        if (t.done) li.className = "done";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = t.done;
+        cb.onchange = async () => {
+          await fetch(`/api/tasks/${t.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ done: cb.checked }),
+          });
+          load();
+        };
+
+        const span = document.createElement("span");
+        span.textContent = t.title;
+
+        const del = document.createElement("button");
+        del.textContent = "Delete";
+        del.onclick = async () => {
+          await fetch(`/api/tasks/${t.id}`, { method: "DELETE" });
+          load();
+        };
+
+        li.append(cb, span, del);
+        list.appendChild(li);
+      });
+    }
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: titleInput.value }),
+      });
+      titleInput.value = "";
+      load();
+    };
+
+    load();
+  </script>
+</body>
+</html>
